@@ -36,7 +36,7 @@ bot.start(async (ctx) => {
 
     Markup.inlineKeyboard([
       [
-        Markup.button.webApp("⭐ Stars olish", APP_URL + "/stars"),
+        Markup.button.webApp("⭐ Stars olish", APP_URL),
         Markup.button.webApp("💎 Premium olish", APP_URL + "/premium")
       ]
     ])
