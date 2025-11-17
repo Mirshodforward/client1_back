@@ -12,8 +12,8 @@ const HUMO_CHAT_ID = String(process.env.HUMO_CHAT_ID);
 const TARGET_CARD_SUFFIX = process.env.TARGET_CARD_SUFFIX?.replace(/\D/g, '').slice(-4);
 
 // 🔹 Endi ikkita alohida API manzili
-const MATCH_API_STARS = process.env.MATCH_API_STARS || 'http://localhost:5000/api/payments/match';
-const MATCH_API_PREMIUM = process.env.MATCH_API_PREMIUM || 'http://localhost:5000/api/premium/match';
+const MATCH_API_STARS = process.env.MATCH_API_STARS || 'http://localhost:5001/api/payments/match';
+const MATCH_API_PREMIUM = process.env.MATCH_API_PREMIUM || 'http://localhost:5001/api/premium/match';
 
 if (!TG_API_ID || !TG_API_HASH || !TG_SESSION || !HUMO_CHAT_ID || !TARGET_CARD_SUFFIX) {
   console.error('❌ Environment o‘zgaruvchilar yetarli emas. .env faylni tekshiring!');
