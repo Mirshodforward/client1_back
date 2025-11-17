@@ -1018,37 +1018,6 @@ app.patch("/api/admin/secret/update", async (req, res) => {
 
 
 
-// ===============================
-// 🔐 SECRET INFORMATIONS — DEFAULT INSERT
-// ===============================
-(async () => {
-  try {
-    const check = await pool.query("SELECT COUNT(*) FROM secret_informations");
-
-    if (Number(check.rows[0].count) === 0) {
-      await pool.query(`
-        INSERT INTO secret_informations 
-        (card_number, card_name, fragment_api, telegram_session, tg_api_id, tg_api_hash, bot_token)
-        VALUES 
-        (
-          '0000 0000 0000 0000',       -- card_number
-          'Default Card',              -- card_name
-          'API_KEY_HERE',              -- fragment api
-          'SESSION_HERE',              -- telegram_session
-          '123456',                    -- tg_api_id
-          'hash_here',                 -- tg_api_hash
-          'bot_token_here'             -- bot_token
-        );
-      `);
-      console.log("✨ Default secret_informations row inserted!");
-    } else {
-      console.log("ℹ secret_informations already has data, default skip");
-    }
-
-  } catch (err) {
-    console.error("❌ Default insert error:", err);
-  }
-})();
 
 // ======================
 // 7️⃣ Serverni ishga tushirish
