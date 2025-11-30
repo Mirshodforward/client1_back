@@ -24,10 +24,6 @@ console.log("📡 HUMO parser starting...");
 runScript("./bot.js");
 
 
-// =============================
-// 3) Telegraf bot (bot.js)
-// =============================
-console.log("🤖 Telegram bot starting...");
-runScript("./token.js");
+
 
 console.log("🔥 Hammasi parallel ishlayapti!");

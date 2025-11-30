@@ -1,25 +1,20 @@
-import 'dotenv/config';
-import { Telegraf, Markup } from 'telegraf';
+// bot.js
+import { Telegraf, Markup } from "telegraf";
+import dotenv from "dotenv";
+dotenv.config();
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+export const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// ADMIN IDS → array
 const ADMIN_IDS = process.env.ADMIN_IDS.split(',').map(id => Number(id));
-
-// Mini app URL
 const APP_URL = process.env.WEBAPP_URL;
 
-// ===============================
-// /start komandasi
-// ===============================
 bot.start(async (ctx) => {
   const userId = ctx.from.id;
   const fullName = ctx.from.first_name;
 
-  // Agar Admin bo‘lsa
   if (ADMIN_IDS.includes(userId)) {
-    await ctx.reply(
-      `👑 Admin aka, xush kelibsiz!\n\n${fullName}, siz admin panelga kirdingiz.`,
+    return ctx.reply(
+      `👑 Admin aka, xush kelibsiz, ${fullName}!`,
       Markup.inlineKeyboard([
         [
           Markup.button.webApp("⭐ Stars panel", APP_URL + "/starsadmin"),
@@ -27,24 +22,18 @@ bot.start(async (ctx) => {
         ]
       ])
     );
-    return;
   }
 
-  // Oddiy user uchun xabar
-  await ctx.reply(
-    `🌟 PremiumFaster botiga xush kelibsiz, ${fullName}!\n\nIltimos, quyidagi xizmatlardan birini tanlang:`,
-
+  return ctx.reply(
+    `🌟 PremiumFaster botiga xush kelibsiz, ${fullName}!`,
     Markup.inlineKeyboard([
       [
-        Markup.button.webApp("⭐ Stars olish", APP_URL),
-        Markup.button.webApp("💎 Premium olish", APP_URL + "/premium")
+        Markup.button.webApp("Web app", APP_URL),
+        
       ]
     ])
   );
 });
 
-// ===============================
-// Botni ishga tushirish
-// ===============================
 bot.launch();
 console.log("🚀 Bot ishlayapti...");

@@ -4,6 +4,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import crypto from "crypto";
+// yuqorida qo‘shiladi
+import { sendLog } from "./log.js";
+
+
 dotenv.config();
 const { Pool } = pkg;
 
@@ -274,6 +278,7 @@ app.post("/api/order", async (req, res) => {
     );
 
     const order = result.rows[0];
+    
 
     console.log(
       `🧾 Order yaratildi: ${order.username} | ${order.recipient} | ${order.amount} so'm | ${order.stars}⭐`
@@ -382,6 +387,7 @@ app.post("/api/payments/match", async (req, res) => {
         console.error("❌ Yulduz yuborishda xato:", err.message);
       });
 
+       
     res.json(updated.rows[0]);
 
   } catch (err) {
@@ -398,15 +404,29 @@ async function sendStarsToUser(orderId, recipientId, stars) {
   try {
     console.log("🔹 sendStarsToUser:", { orderId, recipientId, stars });
 
+    // ⭐ 1) ORDER MALUMOTINI BAZADAN OLAMIZ (log uchun kerak)
+    const orderRes = await pool.query(
+      "SELECT * FROM transactions WHERE id=$1",
+      [orderId]
+    );
+
+    if (!orderRes.rows.length) {
+      throw new Error("Order topilmadi (sendStarsToUser)");
+    }
+
+    const order = orderRes.rows[0];
+
+    // ⭐ 2) Idempotency key
     const idempotencyKey = crypto.randomUUID();
 
     const purchaseBody = {
       product_type: "stars",
-      recipient: recipientId,        
+      recipient: recipientId,
       quantity: String(stars),
       idempotency_key: idempotencyKey,
     };
 
+    // ⭐ 3) Providerga yuborish
     const purchaseRes = await fetch("https://robynhood.parssms.info/api/test/purchase", {
       method: "POST",
       headers: {
@@ -419,25 +439,26 @@ async function sendStarsToUser(orderId, recipientId, stars) {
 
     const text = await purchaseRes.text();
     let data;
-
     try {
       data = JSON.parse(text);
     } catch (err) {
-      throw new Error("Purchase API noto'g'ri format qaytardi: " + text);
+      throw new Error("Provider noto'g'ri JSON qaytardi → " + text);
     }
 
-    console.log("📦 Purchase javob:", data);
+    console.log("📦 Purchase response:", data);
 
+    // ⭐ 4) Provider xatolik qaytarsa
     if (!data.transaction_id) {
       await pool.query(
-        "UPDATE transactions SET status = $1 WHERE id = $2",
-        ["failed", orderId]
+        "UPDATE transactions SET status='failed' WHERE id=$1",
+        [orderId]
       );
-      throw new Error("Purchase error: " + JSON.stringify(data));
+      throw new Error("Provider purchase error: " + JSON.stringify(data));
     }
 
     const txId = data.transaction_id;
 
+    // ⭐ 5) Bazada statusni yangilash
     await pool.query(
       `UPDATE transactions
        SET status='stars_sent',
@@ -445,13 +466,33 @@ async function sendStarsToUser(orderId, recipientId, stars) {
        WHERE id=$2`,
       [txId, orderId]
     );
+    // 🟦 ORDER NUMBER ANIQLAYMIZ
+const countRes = await pool.query("SELECT COUNT(*) FROM transactions");
+const orderNumber = Number(countRes.rows[0].count);
+    // ⭐ 6) LOG KANALGA YUBORAMIZ
+    await sendLog(`
+#${orderNumber}
+<b>✨ STARS YUBORILDI</b>
 
-    console.log(`✅ Stars yuborildi: ${orderId} -> ${txId}`);
+👤 Username: @${order.username}
+
+
+⭐ Yuborilgan: <b>${order.stars}</b>
+💰 To'lov summasi: <b>${order.amount} so'm</b>
+
+📦 Transaction ID: <code>${txId}</code>
+🕒 ${new Date(order.created_at).toLocaleString()}
+    `);
+
+    console.log(`✅ Stars yuborildi: orderId=${orderId}, tx=${txId}`);
     return txId;
 
   } catch (err) {
     console.error("❌ sendStarsToUser error:", err);
-    await pool.query("UPDATE transactions SET status='error' WHERE id=$1", [orderId]);
+    await pool.query(
+      "UPDATE transactions SET status='error' WHERE id=$1",
+      [orderId]
+    );
     throw err;
   }
 }
@@ -636,8 +677,11 @@ app.post("/api/premium", async (req, res) => {
     );
 
     console.log("🎉 ORDER CREATE →", result.rows[0]);
+   
 
     return res.json({ success: true, order: result.rows[0] });
+    
+
 
   } catch (err) {
     console.error("❌ PREMIUM ORDER ERROR:", err);
@@ -684,6 +728,7 @@ app.post("/api/premium/match", async (req, res) => {
     console.log("➡ Premium yuborish funksiyasi chaqirildi");
 
     const sendResult = await sendPremiumToUser(order.id, order.recipient, order.muddat_oy);
+    
 
     console.log("📦 sendPremiumToUser javobi:", sendResult);
 
@@ -708,19 +753,25 @@ async function sendPremiumToUser(orderId, recipientId, months) {
     console.log("\n=============== 🚀 PREMIUM YUBORILMOQDA ===============");
     console.log("📥 Parametrlar:", { orderId, recipientId, months });
 
-    const check = await pool.query(
-      "SELECT status FROM transactions_premium WHERE id=$1",
+    // 1️⃣ ORDER NI BAZADAN OLAMIZ — log uchun kerak
+    const orderRes = await pool.query(
+      "SELECT * FROM transactions_premium WHERE id=$1",
       [orderId]
     );
 
-    console.log("🔎 Hozirgi status:", check.rows[0]);
-
-    if (!check.rows.length)
+    if (!orderRes.rows.length) {
       return { status: "error", reason: "order_not_found" };
+    }
 
-    if (check.rows[0].status === "premium_sent")
+    const order = orderRes.rows[0];
+    console.log("🔎 ORDER:", order);
+
+    // 2️⃣ Agar premium oldin yuborilgan bo‘lsa
+    if (order.status === "premium_sent") {
       return { status: "premium_sent", reason: "already_sent" };
+    }
 
+    // 3️⃣ Idempotency key yaratamiz
     const idempotencyKey = crypto.randomUUID();
     console.log("🧬 Idempotency Key:", idempotencyKey);
 
@@ -733,6 +784,7 @@ async function sendPremiumToUser(orderId, recipientId, months) {
 
     console.log("🌐 Providerga so‘rov yuborilmoqda:", body);
 
+    // 4️⃣ Providerga so‘rov
     const resp = await fetch("https://robynhood.parssms.info/api/test/purchase", {
       method: "POST",
       headers: {
@@ -743,12 +795,13 @@ async function sendPremiumToUser(orderId, recipientId, months) {
       body: JSON.stringify(body)
     });
 
-    const text = await resp.text();
-    console.log("📦 Provider RAW:", text);
+    const raw = await resp.text();
+    console.log("📦 Provider RAW:", raw);
 
     let data;
-    try { data = JSON.parse(text); }
-    catch {
+    try {
+      data = JSON.parse(raw);
+    } catch (err) {
       console.log("❌ JSON parse xato!");
       await pool.query(
         "UPDATE transactions_premium SET status='failed' WHERE id=$1",
@@ -759,16 +812,34 @@ async function sendPremiumToUser(orderId, recipientId, months) {
 
     console.log("📡 Provider JSON:", data);
 
+    // 5️⃣ Muvaffaqiyatli bo‘lsa
     if (data.transaction_id) {
-      console.log("✅ Premium success, bazaga yozilmoqda...");
       await pool.query(
         "UPDATE transactions_premium SET status='premium_sent', transaction_id=$1 WHERE id=$2",
         [data.transaction_id, orderId]
       );
+      // 🟦 ORDER NUMBER ANIQLAYMIZ.
+      const countRes = await pool.query("SELECT COUNT(*) FROM transactions_premium");
+      const orderNumber = Number(countRes.rows[0].count);
+
+      // 6️⃣ PREMIUM LOG YUBORAMIZ
+      await sendLog(`
+<b>💎 PREMIUM YUBORILDI</b>
+#${orderNumber}
+
+👤 Username: @${order.username}
+
+🕒 Muddat: <b>${order.muddat_oy} oy</b>
+💰 To‘lov summasi: <b>${order.amount} so‘m</b>
+
+📦 Transaction ID: <code>${data.transaction_id}</code>
+🕒 ${new Date(order.created_at).toLocaleString()}
+      `);
 
       return { status: "premium_sent", transaction_id: data.transaction_id };
     }
 
+    // 7️⃣ Provider xatosi bo‘lsa
     console.log("❌ Provider error:", data.error);
 
     await pool.query(
@@ -789,7 +860,6 @@ async function sendPremiumToUser(orderId, recipientId, months) {
     return { status: "error", reason: err.message };
   }
 }
-
 
 //-----------------------
 // 🔍 PREMIUM TRANSACTION HOLATI
