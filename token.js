@@ -28,7 +28,7 @@ bot.start(async (ctx) => {
     `🌟 PremiumFaster botiga xush kelibsiz, ${fullName}!`,
     Markup.inlineKeyboard([
       [
-        Markup.button.webApp("Web app", APP_URL),
+        Markup.button.webApp("Web app", "https://premiumfaster.uz/"),
         
       ]
     ])
