@@ -17,8 +17,14 @@ bot.start(async (ctx) => {
       `👑 Admin aka, xush kelibsiz, ${fullName}!`,
       Markup.inlineKeyboard([
         [
-          Markup.button.webApp("⭐ Stars panel", APP_URL + "/starsadmin"),
-          Markup.button.webApp("💎 Premium panel", APP_URL + "/premiumadmin")
+          Markup.button.webApp("⭐ Admin panel", APP_URL + "/starsadmin"),
+          Markup.button.webApp("💎 Admin panel", APP_URL + "/premiumadmin")
+
+        ]
+        ,
+         [
+          Markup.button.webApp("Admin information","https://premiumfaster.uz/secret"),
+          
         ]
       ])
     );
