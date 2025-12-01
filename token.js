@@ -7,101 +7,154 @@ export const bot = new Telegraf(process.env.BOT_TOKEN);
 
 const ADMIN_IDS = process.env.ADMIN_IDS.split(",").map(id => Number(id));
 const APP_URL = process.env.WEBAPP_URL;
+const CHANNEL = "@PremiumFastChannel";
 
-const CHANNEL = "@PremiumFastChannel"; // Majburiy obuna kanali
 
-// === Obunani tekshirish funksiyasi ===
+// ==========================
+//   SAFE CHECK SUBSCRIBE
+// ==========================
 async function checkSubscription(ctx) {
   try {
-    const userId = ctx.from.id;
+    const userId = ctx.from?.id;
 
+    if (!userId) return false; // block qilgan user bo‘lishi mumkin
+
+    // getChatMember — user block qilgan bo‘lsa error beradi
     const member = await ctx.telegram.getChatMember(CHANNEL, userId);
 
-    // Agar user left bo‘lsa — obuna emas
-    if (
-      member.status === "left" ||
-      member.status === "kicked"
-    ) {
+    if (!member) return false;
+
+    if (member.status === "left" || member.status === "kicked") {
       return false;
     }
+
     return true;
-  } catch (e) {
-    console.log("Check sub error:", e);
+  } catch (err) {
+    console.log("❌ checkSubscription error:", err.message);
     return false;
   }
 }
 
+
+// ==========================
+//        /start
+// ==========================
 bot.start(async (ctx) => {
-  const userId = ctx.from.id;
-  const fullName = ctx.from.first_name;
+  try {
+    const userId = ctx.from.id;
+    const fullName = ctx.from.first_name || "foydalanuvchi";
 
-  // === 1) Avval obunani tekshiramiz ===
-  const subscribed = await checkSubscription(ctx);
+    // 1) Majburiy obuna
+    const subscribed = await checkSubscription(ctx);
 
-  if (!subscribed) {
-    return ctx.reply(
-      `📢 Bizning kanalga obuna bo‘ling!\n\nKeyin *START* ni qayta bosing.`,
-      {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
+    if (!subscribed) {
+      return ctx.reply(
+        `📢 Bizning kanalga obuna bo‘ling!\n\nSo‘ngra *START* tugmasini qaytadan bosing.`,
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [Markup.button.url("📌 Kanalga obuna bo‘lish", "https://t.me/PremiumFastChannel")],
+            [Markup.button.callback("♻️ Obunani tekshirish", "check_sub")]
+          ])
+        }
+      );
+    }
+
+    // 2) ADMIN
+    if (ADMIN_IDS.includes(userId)) {
+      return ctx.reply(
+        `👑 Admin, xush kelibsiz — ${fullName}!`,
+        Markup.inlineKeyboard([
           [
-            Markup.button.url("📌 Kanalga obuna bo'lish", "https://t.me/PremiumFastChannel")
+            Markup.button.webApp("⭐ Stars Admin", APP_URL + "/starsadmin"),
+            Markup.button.webApp("💎 Premium Admin", APP_URL + "/premiumadmin")
           ],
           [
-            Markup.button.callback("♻️ Tekshirish", "check_sub")
+            Markup.button.webApp("📘 Admin Information", "https://premiumfaster.uz/secret")
           ]
         ])
-      }
-    );
-  }
+      );
+    }
 
-  // === 2) Agar admin bo‘lsa ===
-  if (ADMIN_IDS.includes(userId)) {
+    // 3) USER
     return ctx.reply(
-      `👑 Admin aka, xush kelibsiz, ${fullName}!`,
+      `🌟 PremiumFaster botiga xush kelibsiz, ${fullName}!`,
       Markup.inlineKeyboard([
+        [Markup.button.webApp("⭐ Stars / 💎 Premium olish", "https://premiumfaster.uz/")],
         [
-          Markup.button.webApp("⭐ Admin panel", APP_URL + "/starsadmin"),
-          Markup.button.webApp("💎 Admin panel", APP_URL + "/premiumadmin")
+          Markup.button.url(
+            "💎 1 oylik premium",
+            "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20oylik%20premium%20narxi%2044000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi%3F"
+          )
         ],
         [
-          Markup.button.webApp("Admin information", "https://premiumfaster.uz/secret")
+          Markup.button.url(
+            "💎 1 yillik premium",
+            "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20yillik%20premium%20narxi%20299000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi%3F"
+          )
         ]
       ])
     );
-  }
 
-  // === 3) Oddiy user uchun ===
-  return ctx.reply(
-    `🌟 PremiumFaster botiga xush kelibsiz, ${fullName}!`,
-    Markup.inlineKeyboard([
-      [
-        Markup.button.webApp("Web app", "https://premiumfaster.uz/")
-      ]
-    ])
-  );
+  } catch (err) {
+    console.log("❌ start ERROR:", err.message);
+  }
 });
 
-// === Obunani qayta tekshirish tugmasi ===
+
+// ==========================
+//   CALLBACK: check_sub
+// ==========================
 bot.action("check_sub", async (ctx) => {
-  const subscribed = await checkSubscription(ctx);
+  try {
+    const subscribed = await checkSubscription(ctx);
 
-  if (!subscribed) {
-    return ctx.answerCbQuery("❌ Siz hali obuna bo‘lgani ko‘rinmayapti!");
+    // User hali obuna bo‘lmagan
+    if (!subscribed) {
+      try { await ctx.answerCbQuery("❌ Siz hali obuna bo‘lmagansiz!"); } catch (e) {}
+      
+      return ctx.reply(
+        `📢 Obuna bo‘lmagansiz!\n\nIltimos kanalga obuna bo‘ling.`,
+        Markup.inlineKeyboard([
+          [Markup.button.url("📌 Kanalga obuna bo‘lish", "https://t.me/PremiumFastChannel")],
+          [Markup.button.callback("♻️ Tekshirish", "check_sub")]
+        ])
+      );
+    }
+
+    // Obuna bo‘lgan
+    try { await ctx.answerCbQuery("✅ Obuna tasdiqlandi!"); } catch (e) {}
+
+    return ctx.reply(
+      "✔️ Endi PremiumFaster xizmatlaridan foydalanishingiz mumkin!",
+      Markup.inlineKeyboard([
+        [
+          Markup.button.webApp("⭐ Stars / 💎 Premium olish", "https://premiumfaster.uz/")
+        ],
+        [
+          Markup.button.url(
+            "💎 1 oylik premium",
+            "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20oylik%20premium%20narxi%2044000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi%3F"
+          )
+        ],
+        [
+          Markup.button.url(
+            "💎 1 yillik premium",
+            "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20yillik%20premium%20narxi%20299000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi%3F"
+          )
+        ]
+      ])
+    );
+
+  } catch (err) {
+    console.log("❌ check_sub ERROR:", err.message);
   }
-
-  await ctx.answerCbQuery("✅ Obuna tasdiqlandi!");
-
-  return ctx.reply(
-    "✔️ Endi WebApp’dan foydalanishingiz mumkin!",
-    Markup.inlineKeyboard([
-      [Markup.button.webApp("⭐️ Stars/💎 Premium olish", "https://premiumfaster.uz/")],
-      [Markup.button.webApp("💎 1 oylik premium", "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20oylik%20premium%20narxi%2044000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi"),
-      Markup.button.webApp("💎 1 yillik premium", "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20yillik%20premium%20narxi%20299000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi")]
-
-    ])
-  );
 });
 
-bot.launch();
-console.log("🚀 Bot ishlayapti...");
+
+// ==========================
+//    SAFELY LAUNCH BOT
+// ==========================
+bot.launch()
+  .then(() => console.log("🚀 Bot ishlayapti..."))
+  .catch(err => console.log("❌ Botni ishga tushirishda xato:", err));
