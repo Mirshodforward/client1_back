@@ -427,7 +427,7 @@ async function sendStarsToUser(orderId, recipientId, stars) {
     };
 
     // ⭐ 3) Providerga yuborish
-    const purchaseRes = await fetch("https://robynhood.parssms.info/api/test/purchase", {
+    const purchaseRes = await fetch("https://robynhood.parssms.info/api/purchase", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -785,7 +785,7 @@ async function sendPremiumToUser(orderId, recipientId, months) {
     console.log("🌐 Providerga so‘rov yuborilmoqda:", body);
 
     // 4️⃣ Providerga so‘rov
-    const resp = await fetch("https://robynhood.parssms.info/api/test/purchase", {
+    const resp = await fetch("https://robynhood.parssms.info/api/purchase", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
