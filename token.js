@@ -95,7 +95,10 @@ bot.action("check_sub", async (ctx) => {
   return ctx.reply(
     "✔️ Endi WebApp’dan foydalanishingiz mumkin!",
     Markup.inlineKeyboard([
-      [Markup.button.webApp("Web app", "https://premiumfaster.uz/")]
+      [Markup.button.webApp("⭐️ Stars/💎 Premium olish", "https://premiumfaster.uz/")],
+      [Markup.button.webApp("💎 1 oylik premium", "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20oylik%20premium%20narxi%2044000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi"),
+      Markup.button.webApp("💎 1 yillik premium", "https://t.me/username_sn?text=Assalomu%20aleykum%2C%201%20yillik%20premium%20narxi%20299000%20so%27m%20ekan%20akkauntimga%20kirib%20olib%20berasizmi")]
+
     ])
   );
 });
